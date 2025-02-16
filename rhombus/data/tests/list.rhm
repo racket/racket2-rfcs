@@ -1,0 +1,50 @@
+#lang rhombus
+
+
+import:
+  rhombus/data/list.List
+
+
+check:
+  List.of().size
+  ~is 0
+
+check:
+  List.of("foo").size
+  ~is 1
+
+check:
+  List.of("foo", "bar", "baz").size
+  ~is 3
+
+check:
+  List.of("foo").get(0)
+  ~is "foo"
+  
+check:
+  List.of("foo", "bar", "baz").get(0)
+  ~is "foo"
+
+check:
+  List.of("foo", "bar", "baz").get(1)
+  ~is "bar"
+
+check:
+  List.of("foo", "bar", "baz").get(2)
+  ~is "baz"
+
+check:
+  List.of().isEmpty()
+  ~is #true
+
+check:
+  List.of(1, 2, 3).contains(2)
+  ~is #true
+
+check:
+  List.of(1, 2, 3).contains(4)
+  ~is #false
+
+check:
+  List.builder().build().size
+  ~is 0

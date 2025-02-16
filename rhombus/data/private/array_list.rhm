@@ -1,0 +1,184 @@
+#lang rhombus
+
+
+export:
+  ArrayList
+
+
+import:
+  rhombus/data/private/list.MutableList
+  rhombus/data/sequence.Iterator
+  lib("racket/base.rkt").error
+
+
+class ArrayList():
+  implements MutableList
+  internal PrivateArrayList
+
+  private field storage :: Array = Array()
+  private field currentSize :: Integer = 0
+
+  // This field tracks how many structural modifications the list has undergone. Changing an element
+  // is not a structural modification, but adding or removing an element is.
+  private field version :: Integer = 0
+
+  override method iterate(): ArrayListIterator(this)
+
+  override property size: currentSize
+
+  override method get(index):
+    checkIndex("List.get", index)
+    storage[index]
+
+  override method sublist(start, end):
+    checkSublistIndicies("List.sublist", start, end)
+    ArraySublist(this, start, end)
+
+  override method set(index, element):
+    checkIndex("List.set", index)
+    storage[index] := element
+
+  override method add(element):
+    version := version + 1
+    ensureCapacity(currentSize + 1)
+    storage[currentSize] := element
+    currentSize := currentSize + 1
+    version := version + 1
+
+  override method remove(element):
+    let i = find(element)
+    unless i == -1 | delete(i)
+
+  override method insert(index :: Integer, element) :: Void:
+    checkInsertionIndex("List.insert", index)
+    ensureCapacity(currentSize + 1)
+    fun loop(i = currentSize):
+      unless i == index
+      | storage[i] := storage[i - 1]
+        loop(i - 1)
+    loop()
+    storage[index] := element
+    currentSize := currentSize + 1
+    version := version + 1
+
+  override method delete(index :: Integer) :: Void:
+    checkIndex("List.delete", index)
+    for:
+      each i: index + 1 .. currentSize
+      storage[i - 1] := storage[i]
+    storage[currentSize - 1] := #false
+    currentSize := currentSize - 1
+    version := version + 1
+
+  override method clear() :: Void:
+    storage := Array()
+    currentSize := 0
+    version := version + 1
+
+  private method find(element):
+    fun loop(i = 0):
+      cond
+      | i == currentSize: -1
+      | storage[i] == element: i
+      | ~else: loop(i + 1)
+    loop()
+
+  method ensureCapacity(requiredSize) :: Void:
+    when storage.length() < requiredSize
+    | let newStorage = Array.make(max(storage.length() * 2, requiredSize))
+      for:
+        each:
+          v: storage
+          i: 0..
+        newStorage[i] := v
+      storage := newStorage
+
+
+class ArraySublist(backingList :: PrivateArrayList, start :: Integer, mutable end :: Integer):
+  implements MutableList
+
+  override method iterate():
+    ArraySublistIterator(this)
+
+  override property size:
+    end - start
+
+  override method contains(element):
+    find(element) != -1
+
+  override method get(index):
+    checkIndex("List.get", index)
+    backingList.get(index + start)
+
+  override method sublist(start, end):
+    checkSublistIndicies("List.sublist", start, end)
+    ArraySublist(backingList, this.start + start, this.start + end)
+
+  override method set(index, element):
+    checkIndex("List.set", index)
+    backingList.set(index + start, element)
+
+  override method add(element):
+    backingList.insert(end, element)
+
+  override method remove(element):
+    let i = find(element)
+    unless i == -1
+    | delete(i)
+
+  override method insert(index, element):
+    checkInsertionIndex("List.insert", index)
+    backingList.insert(index + start, element)
+    end := end + 1
+
+  override method delete(index):
+    checkIndex("List.delete", index)
+    backingList.delete(index + start)
+    end := end - 1
+
+  override method clear():
+    let elementsToShift = backingList.currentSize - end
+    let currentSize = size
+    for:
+      each i: start .. start + elementsToShift
+      backingList.storage[i] := backingList.storage[i + currentSize]
+    let newSize = backingList.size - currentSize
+    for:
+      each i: newSize .. backingList.currentSize
+      backingList.storage[i] := #false
+    backingList.currentSize := newSize
+    backingList.version := backingList.version + 1
+    end := 0
+
+  private method find(element):
+    fun loop(i = start):
+      cond
+      | i == end: -1
+      | backingList.get(i) == element: i - start
+      | ~else: loop(i + 1)
+    loop()
+
+
+class ArrayListIterator(backingList :: ArrayList, private version :: Integer = backingList.version):
+  implements Iterator
+
+  private field index :: Integer: 0
+
+  override method hasNext():
+    when version < backingList.version | error("concurrent modification")
+    index < backingList.size
+
+  override method next():
+    when version < backingList.version | error("concurrent modification")
+    unless index < backingList.size | error("no such element")
+    let element = backingList.get(index)
+    index := index + 1
+    element
+
+
+// TODO
+class ArraySublistIterator(backingSublist :: ArraySublist)
+
+
+fun max(x, y):
+  if x < y | y | x

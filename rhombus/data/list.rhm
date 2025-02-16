@@ -1,0 +1,31 @@
+#lang rhombus
+
+
+export:
+  List
+  ListView
+  MutableList
+
+
+import:
+  rhombus/data/private/array_list.ArrayList
+  rhombus/data/private/list.List
+  rhombus/data/private/list.ListView
+  rhombus/data/private/list.MutableList
+  rhombus/data/private/list_builder.ListBuilder
+
+
+fun List.builder(): ListBuilder()
+
+
+// TODO: make this work as List(...) instead of List.of(...)
+fun List.of(element, ...):
+  let builder = List.builder()
+  for:
+    each v: Array(element, ...)
+    builder.add(v)
+  builder.build()
+
+
+// TODO: make this work as MutableList() instead of MutableList.create()
+fun MutableList.create(): ArrayList()

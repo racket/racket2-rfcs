@@ -1,0 +1,16 @@
+#lang rhombus
+
+
+export:
+  Sequence
+  Iterator
+
+
+class.together:
+
+  interface Sequence:
+    method iterate() :: Iterator
+
+  interface Iterator:
+    method hasNext() :: Boolean
+    method next()

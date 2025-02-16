@@ -1,0 +1,84 @@
+#lang rhombus
+
+
+export:
+  List
+  ListView
+  MutableList
+
+
+import:
+  rhombus/data/collection.Collection
+  rhombus/data/collection.CollectionView
+  rhombus/data/collection.MutableCollection
+  rhombus/private/precondition.checkArgument
+
+
+interface ListView:
+  extends CollectionView
+
+  method get(index :: Integer)
+  method sublist(start :: Integer, end :: Integer) :: ListView
+
+  method checkIndex(who, index):
+    checkArgument(
+      who,
+      index >= 0 && index < size,
+      "index out of bounds",
+      "index", index,
+      "size", size)
+
+  method checkInsertionIndex(who, index):
+    checkArgument(
+      who,
+      index >= 0 && index <= size,
+      "index out of bounds",
+      "index", index,
+      "size", size)
+
+  method checkSublistIndicies(who, start, end):
+    checkArgument(
+      who,
+      start >= 0 && start <= size,
+      "sublist start index out of bounds",
+      "start index", start,
+      "end index", end,
+      "size", size)
+    checkArgument(
+      who,
+      end >= 0 && end <= size,
+      "sublist end index out of bounds",
+      "start index", start,
+      "end index", end,
+      "size", size)
+    checkArgument(
+      who,
+      start <= end,
+      "sublist start index occurs after end index",
+      "start index", start,
+      "end index", end,
+      "size", size)
+
+
+interface List:
+  extends:
+    ListView
+    Collection
+
+  method set(index :: Integer, element) :: List
+  override add(element) :: List
+  override remove(element) :: List
+  method insert(index :: Integer, element) :: List
+  method delete(index :: Integer) :: List
+  override sublist(start :: Integer, end :: Integer) :: List
+
+
+interface MutableList:
+  extends:
+    ListView
+    MutableCollection
+
+  method set(index :: Integer, element) :: Void
+  method insert(index :: Integer, element) :: Void
+  method delete(index :: Integer) :: Void
+  override sublist(start :: Integer, end :: Integer) :: MutableList

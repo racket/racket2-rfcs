@@ -1,0 +1,9 @@
+#lang racket/base
+
+
+(provide checkArgument)
+
+
+(define (checkArgument who condition message . args)
+  (unless condition
+    (apply raise-arguments-error (string->symbol who) message args)))

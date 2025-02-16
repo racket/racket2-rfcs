@@ -1,0 +1,47 @@
+#lang rhombus
+
+
+export:
+  Collection
+  CollectionView
+  MutableCollection
+
+
+import:
+  rhombus/data/sequence.Sequence
+
+
+interface CollectionView:
+  extends Sequence
+  // read-only property
+  property size :: Integer
+
+  method isEmpty() :: Boolean: size() == 0
+
+  method contains(element) :: Boolean:
+    let iterator = iterate()
+    fun loop():
+      iterator.hasNext() && (iterator.next() == element || loop())
+    loop()
+
+
+interface Collection:
+  extends CollectionView
+  method add(element) :: Collection
+  method remove(element) :: Collection
+
+
+interface MutableCollection:
+  extends CollectionView
+  method add(element) :: Void
+
+  method addAll(elements :: Sequence) :: Void:
+    let iterator = elements.iterate()
+    fun loop():
+      when iterator.hasNext()
+      | add(iterator.next())
+        loop()
+    loop()
+
+  method remove(element) :: Void
+  method clear() :: Void
