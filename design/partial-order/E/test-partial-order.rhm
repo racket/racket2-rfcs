@@ -1,0 +1,179 @@
+#lang rhombus
+
+import:
+  lib("racket/base.rkt").gcd
+  lib("racket/base.rkt").#{eq-hash-code} as eq_hash_code
+  lib("racket/base.rkt").#{equal-always-hash-code} as equal_always_hash_code
+  lib("racket/base.rkt").#{equal-hash-code} as equal_now_hash_code
+  lib("racket/flonum.rkt").flvector
+  lib("racket/set.rkt").set as set_now
+  lib("racket/set.rkt").#{set-count} as set_count
+  "partial-order.rkt" open
+  "equatable.rkt" open
+  "Lexicographic.rhm".Lexicographic
+
+class UnredRatio(n :: Integer, d :: PositiveInteger):
+  private implements PartialOrder
+  private override compare_key():
+    let c: gcd(n, d)
+    [n/c, d/c]
+  private override partial_compare(other :: UnredRatio, recur, _):
+    recur(n * other.d, other.n * d)
+
+check UnredRatio(1, 2) =~ UnredRatio(2, 4) ~is #true
+check UnredRatio(1, 2) =~ UnredRatio(3, 4) ~is #false
+check UnredRatio(1, 2) <~ UnredRatio(3, 4) ~is #true
+check UnredRatio(1, 2) <~ UnredRatio(1, 4) ~is #false
+check UnredRatio(1, 2) >~ UnredRatio(1, 4) ~is #true
+check:
+  [UnredRatio(1, 2), UnredRatio(-1, 2)] <~ [UnredRatio(3, 4), UnredRatio(-1, 4)]
+  ~is #true
+check:
+  [UnredRatio(1, 2), UnredRatio(-1, 2)] >~ [UnredRatio(1, 4), UnredRatio(-3, 4)]
+  ~is #true
+
+check:
+  Lexicographic(UnredRatio(1, 2), UnredRatio(-1, 2)) <~ Lexicographic(UnredRatio(3, 4), UnredRatio(-1, 4))
+  ~is #true
+check:
+  Lexicographic(UnredRatio(1, 2), UnredRatio(-1, 2)) >~ Lexicographic(UnredRatio(1, 4), UnredRatio(-3, 4))
+  ~is #true
+
+check: Lexicographic(5, 8, 3, 13, 2) =~ Lexicographic(5, 8, 3, 13, 2) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) =~ Lexicographic(5, 8, 3, 13, 2, -1) ~is #false
+check: Lexicographic(5, 8, 3, 13, 2) !=~ Lexicographic(5, 8, 3, 13, 2, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) <=~ Lexicographic(5, 8, 3, 13, 2, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) <~ Lexicographic(5, 8, 3, 13, 2, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) <=~ Lexicographic(5, 8, 2, 13, 2, -1) ~is #false
+check: Lexicographic(5, 8, 3, 13, 2) >=~ Lexicographic(5, 8, 2, 13, 2, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) >~ Lexicographic(5, 8, 2, 13, 2, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) >=~ Lexicographic(6, -1) ~is #false
+check: Lexicographic(5, 8, 3, 13, 2) <=~ Lexicographic(6, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) <~ Lexicographic(6, -1) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) <=~ Lexicographic(4, 18) ~is #false
+check: Lexicographic(5, 8, 3, 13, 2) >=~ Lexicographic(4, 18) ~is #true
+check: Lexicographic(5, 8, 3, 13, 2) >~ Lexicographic(4, 18) ~is #true
+
+check: PartialOrder.within([6, 10], [6.02, 9.99], 0.05) ~is #true
+check: PartialOrder.within({#'C: 20, #'F: 68}, {#'C: 25, #'F: 77}, 10) ~is #true
+
+check: PartialOrder.within([6e+23, 10.0], [6.02e+23, 9.8], 0.05) ~is #false
+check: PartialOrder.within({#'C: 18, #'F: 64}, {#'C: 25, #'F: 77}, 10) ~is #false
+
+check: #nan =~ #nan ~is #false
+check: #nan !=~ #nan ~is #true
+check: #nan <~ #nan ~is #false
+check: #nan <=~ #nan ~is #false
+
+class AlwaysNaN():
+  private implements PartialOrder
+  private override compare_key(): #nan
+  private override partial_compare(_, _, _): #nan
+
+let NaNish: AlwaysNaN()
+check: NaNish =~ NaNish ~is #false
+check: NaNish !=~ NaNish ~is #true
+check: NaNish <~ NaNish ~is #false
+check: NaNish <=~ NaNish ~is #false
+
+class Baddie(value):
+  private implements PartialOrder
+  private override compare_key():
+    error(#'Baddie, "never compare me to anything!")
+  private override partial_compare(_, _, _):
+    error(#'Baddie, "never compare me to anything!")
+
+check: [1, Baddie(1)] =~ [2, Baddie(2)] ~is #false
+check: [1, Baddie(1)] !=~ [2, Baddie(2)] ~is #true
+check: [1, Baddie(1)] >=~ [2, Baddie(2)] ~is #false
+check: [1, Baddie(1)] >~ [2, Baddie(2)] ~is #false
+check: [2, Baddie(1)] <=~ [1, Baddie(2)] ~is #false
+check: [2, Baddie(1)] <~ [1, Baddie(2)] ~is #false
+
+let hc: PartialOrder.compare_now_hash_code
+check: flvector(0.0) =~ flvector(-0.0) ~is #true
+check: hc(flvector(0.0)) .= hc(flvector(-0.0)) ~is #true
+
+check: flvector(0.0, -0.0) =~ flvector(-0.0, 0.0) ~is #true
+check: hc(flvector(0.0, -0.0)) .= hc(flvector(-0.0, 0.0)) ~is #true
+
+check: flvector(0.0, 1.0) =~ flvector(-0.0, 2.0) ~is #false
+check: flvector(0.0, 1.0) !=~ flvector(-0.0, 2.0) ~is #true
+check: flvector(0.0, 1.0) <=~ flvector(-0.0, 2.0) ~is #true
+check: flvector(0.0, 1.0) <~ flvector(-0.0, 2.0) ~is #true
+check: flvector(2.0, -0.0) <=~ flvector(1.0, 0.0) ~is #false
+check: flvector(2.0, -0.0) >=~ flvector(1.0, 0.0) ~is #true
+check: flvector(2.0, -0.0) >~ flvector(1.0, 0.0) ~is #true
+
+check: flvector(1.0, 20.0) <~ flvector(2.0, 10.0) ~is #false
+check: flvector(1.0, 20.0) <=~ flvector(2.0, 10.0) ~is #false
+check: flvector(1.0, 20.0) >~ flvector(2.0, 10.0) ~is #false
+check: flvector(1.0, 20.0) >=~ flvector(2.0, 10.0) ~is #false
+check: flvector(1.0, 20.0) =~ flvector(2.0, 10.0) ~is #false
+check: flvector(1.0, 20.0) !=~ flvector(2.0, 10.0) ~is #true
+
+check: flvector() <=~ flvector(0.0) ~is #false
+check: flvector(1.0, 10.0) <=~ flvector(2.0, 20.0, 200.0) ~is #false
+
+class IncreasingCell(initial):
+  private field current: 0 // can `init` go here?
+  constructor(initial):
+    let self: super(initial)
+    self.current := initial
+    self
+  property
+  | value: current
+  | value := next:
+      unless next >=~ current
+      | error(#'IncreasingCell, "expected value to increase or stay the same")
+      current := next
+  private implements Equatable
+  private override equals(other, recur): this === other
+  private override hash_code(recur): eq_hash_code(this)
+  private implements PartialOrder
+  private override partial_compare(other :: IncreasingCell, recur, mode):
+    mode && recur(value, other.value)
+  private override compare_key():
+    value
+
+begin:
+  let ic1: IncreasingCell(0)
+  let ic2: IncreasingCell(0)
+  let ic3: IncreasingCell(1)
+
+  check: ic1 == ic2 ~is #false
+  check: {ic1, ic2}.length() ~is 2
+  check: equal_always_hash_code(ic1) .= equal_always_hash_code(ic2) ~is #false
+
+  check: ic1 =~ ic2 ~is #true
+  check: set_count(set_now(ic1, ic2)) ~is 1
+  check: equal_now_hash_code(ic1) .= equal_now_hash_code(ic2) ~is #true
+
+  check: ic1.value == 0 ~is #true
+  check: ic1.value := -1
+         ~raises "IncreasingCell: expected value to increase or stay the same"
+  check: ic1.value == 0 ~is #true
+  ic1.value := 1
+  check: ic1.value == 1 ~is #true
+
+  check: ic1 =~ ic2 ~is #false
+  check: set_count(set_now(ic1, ic2)) ~is 2
+  check: equal_now_hash_code(ic1) .= equal_now_hash_code(ic2) ~is #false
+
+  check: ic1 =~ ic3 ~is #true
+  check: set_count(set_now(ic1, ic3)) ~is 1
+  check: equal_now_hash_code(ic1) .= equal_now_hash_code(ic3) ~is #true
+
+class DateViaKey(year :: Integer, month :: PositiveInteger, day :: PositiveInteger):
+  private implements PartialOrder
+  private override compare_key():
+    Lexicographic(year, month, day)
+
+check: DateViaKey(1903, 12, 17) <~ DateViaKey(1969, 07, 16) ~is #true
+check: DateViaKey(1903, 12, 17) =~ DateViaKey(1969, 07, 16) ~is #false
+check: hc(DateViaKey(1903, 12, 17)) .= hc(DateViaKey(1969, 07, 16))
+       ~is #false
+check: DateViaKey(2022, 11, 16) =~ DateViaKey(2022, 11, 16) ~is #true
+check: hc(DateViaKey(2022, 11, 16)) .= hc(DateViaKey(2022, 11, 16))
+       ~is #true
+
