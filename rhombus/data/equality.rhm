@@ -1,0 +1,44 @@
+#lang rhombus/and_meta
+
+
+export:
+  equality
+
+
+import:
+  lib("racket/base.rkt"):
+    meta
+    expose: #{generate-temporaries}
+  lib("racket/base.rkt").#{equal-hash-code}
+  lib("racket/unsafe/ops.rkt").#{unsafe-fx+/wraparound}
+  lib("racket/unsafe/ops.rkt").#{unsafe-fx*/wraparound}
+
+
+class_clause.macro 'equality: $key_expr; ...':
+  def [key_id, ...] = #{generate-temporaries}([key_expr, ...])
+  'internal PrivateForEquals
+   implements Equatable
+
+   private method $key_id(): $key_expr
+   ...
+
+   override method equals(other):
+     (other is_a PrivateForEquals)
+       $$('&& (this . $key_id() == (other -: PrivateForEquals) . $key_id())') ...
+
+   override method hashCode():
+     let code = 1000003
+     let code:
+       #{unsafe-fx+/wraparound}(
+         #{unsafe-fx*/wraparound}(code, 31), #{equal-hash-code}(this . $key_id()))
+     ...
+     code'
+
+
+class Foo(a, b, c):
+  equality:
+    a
+    b + c
+
+Foo(1, 5, 10) == Foo(1, 10, 5) // true
+Foo(1, 5, 10) == Foo(1, 5, 5) // false
