@@ -1,0 +1,86 @@
+#lang rhombus
+
+
+export:
+  SingletonList
+  EmptyList
+
+
+import:
+  rhombus/data/private/list.List
+  rhombus/data/private/persistent_list.PersistentList
+  rhombus/data/sequence.Iterator
+  lib("racket/base.rkt").error
+
+
+class SingletonList(onlyElement):
+  implements List
+  override method iterate(): SingletonIterator(onlyElement)
+  override property size: 1
+  override method isEmpty(): #false
+  override method contains(element): element == onlyElement
+
+  override method get(index):
+    checkIndex("List.get", index)
+    onlyElement
+
+  override method sublist(start, end):
+    checkSublistIndicies("List.sublist", start, end)
+    if start == end | EmptyList() | this
+
+  override method add(element): PersistentList().add(onlyElement).add(element)
+  override method remove(element): if element == onlyElement | EmptyList() | this
+
+  override method set(index, element):
+    checkIndex("List.set", index)
+    SingletonList(element)
+
+  override method insert(index, element):
+    checkInsertionIndex("List.insert", index)
+    if index == 0
+    | PersistentList().add(element).add(onlyElement)
+    | PersistentList().add(onlyElement).add(element)
+
+  override method delete(index):
+    checkIndex("List.delete", index)
+    EmptyList()
+
+
+class SingletonIterator(element):
+  implements Iterator
+  private field exhausted = #false
+  override method hasNext(): !exhausted
+
+  override method next():
+    when exhausted | error("no such element")
+    exhausted := #true
+    element
+
+
+class EmptyList():
+  implements List
+  override method iterate(): EmptyIterator()
+  override property size: 0
+  override method isEmpty(): #true
+  override method contains(_): #false
+  override method get(index): checkIndex("List.get", index)
+
+  override method sublist(start, end):
+    checkSublistIndicies("List.sublist", start, end)
+    this
+
+  override method add(element): SingletonList(element)
+  override method remove(_): this
+  override method set(index, _): checkIndex("List.set", index)
+
+  override method insert(index, element):
+    checkInsertionIndex("List.insert", index)
+    add(element)
+
+  override method delete(index): checkIndex("List.delete", index)
+
+
+class EmptyIterator():
+  implements Iterator
+  override method hasNext(): #false
+  override method next(): error("no such element")

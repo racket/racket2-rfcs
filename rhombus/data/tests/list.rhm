@@ -1,0 +1,92 @@
+#lang rhombus
+
+
+import:
+  rhombus/data/list.ListView
+  rhombus/data/list.List
+  rhombus/data/list.MutableList
+
+
+check:
+  List().size
+  ~is 0
+
+check:
+  List("foo").size
+  ~is 1
+
+check:
+  List("foo", "bar", "baz").size
+  ~is 3
+
+check:
+  List("foo").get(0)
+  ~is "foo"
+
+check:
+  List("foo", "bar", "baz").get(0)
+  ~is "foo"
+
+check:
+  List("foo", "bar", "baz").get(1)
+  ~is "bar"
+
+check:
+  List("foo", "bar", "baz").get(2)
+  ~is "baz"
+
+check:
+  List().isEmpty()
+  ~is #true
+
+check:
+  List(1, 2, 3).contains(2)
+  ~is #true
+
+check:
+  List(1, 2, 3).contains(4)
+  ~is #false
+
+check:
+  List.builder().build().size
+  ~is 0
+
+check:
+  List(1, 2, 3, 4, 5).sublist(1, 4) is_a List
+  ~is #true
+
+check:
+  List(1, 2, 3, 4, 5).sublist(1, 4).get(1)
+  ~is 3
+
+block:
+  let ml: MutableList()
+  check: ml is_a List ~is #false
+  check: ml is_a MutableList ~is #true
+  ml.addAll(List(1, 2, 3, 4, 5))
+  check: ml.get(0) ~is 1
+  check: ml.get(1) ~is 2
+  check: ml.get(2) ~is 3
+  check: ml.get(3) ~is 4
+  check: ml.get(4) ~is 5
+  // backing list mutated, read-through view sees mutation
+  let sl: ml.sublist(1, 4)
+  check: sl is_a List ~is #false
+  check: sl is_a ListView ~is #true
+  check: sl.get(0) ~is 2
+  check: sl.get(1) ~is 3
+  check: sl.get(2) ~is 4
+  // MUTATE backing list
+  ml.set(2, 30)
+  check: sl.get(1) ~is 30
+  let msl: ml.mutableSublist(1, 4)
+  check: msl is_a List ~is #false
+  check: msl is_a ListView ~is #true
+  check: msl is_a MutableList ~is #true
+  check: msl.get(0) ~is 2
+  check: msl.get(1) ~is 30
+  check: msl.get(2) ~is 4
+  // MUTATE mutable sublist, write-through view
+  msl.set(1, 300)
+  check: ml.get(2) ~is 300
+  check: sl.get(1) ~is 300
